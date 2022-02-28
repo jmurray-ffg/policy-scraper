@@ -5,6 +5,7 @@ const cheerio = require('cheerio');
 const { JSDOM } = jsdom;
 
 const { findKeywords } = require('./src/keyword-extraction');
+const { readPdf } = require('./readPdf')
 
 Apify.main(async () => {
     const input = await Apify.getInput();
@@ -94,6 +95,21 @@ Apify.main(async () => {
                 baseUrl: request.loadedUrl,
                 transformRequestFunction: (request) => {
                     request.userData = { depth: depth + 1 };
+                    if (request.url.match(/\.pdf/)){
+                        console.log(request.url)
+                        console.log('got one')
+                        readPdf(request.url, keywords, {'url': request.url }).then( pdf_result => 
+                            Apify.pushData({
+                                url: request.url,
+                                depth,
+                                pdf_result,
+                            })
+                        )
+                        var start = new Date().getTime(), expire = start + 2000;
+                        while (new Date().getTime() < expire) { var a = 1 }
+
+
+                    }
                     return request;
                 },
             });
