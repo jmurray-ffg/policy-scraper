@@ -9,8 +9,9 @@ const pdfExtract = require('pdf-text-extract');
 const requestPromise = require('request-promise');
 const path = require('path');
 const util = require("util");
+const {findKeywords}  = require('./src/keyword-extraction-pdf');
 
-module.exports.readPdf = async(input) => {
+module.exports.readPdf = async(input, keywords, opts) => {
     // Get input of the actor (here only for demonstration purposes).
     // If you'd like to have your input checked and have Apify display
     // a user interface for it, add INPUT_SCHEMA.json file to your actor.
@@ -18,17 +19,17 @@ module.exports.readPdf = async(input) => {
     console.log('Input:');
     console.dir(input);
 
-    if (!input || !input.url) throw new Error('Input must be a JSON object with the "url" field!');
+    if (!input) throw new Error('Input must be a JSON object with the "url" field!');
 
     const options = {
-        url: input.url,
+        url: input,
         encoding: null // set to `null`, if you expect binary data.
     };
 
     const response = await requestPromise(options);
     const buffer = Buffer.from(response);
 
-    const tmpTarget = 'temp.pdf';
+    const tmpTarget = 'temp' + (Math.random() + 1).toString(36).substring(7) + '.pdf';
     console.log('Saving file to: ' + tmpTarget);
     fs.writeFileSync(tmpTarget, buffer)
     console.log('File saved.');
@@ -42,7 +43,8 @@ module.exports.readPdf = async(input) => {
 
     console.dir(JSON.stringify(pagesText, null, 2));
 
-    console.log('Setting OUTPUT...')
-    await Apify.setValue('OUTPUT', pagesText);
-    console.log('Finished');
+    const result = findKeywords(pagesText, keywords)
+    fs.unlinkSync(tmpTarget)
+    console.log('extracted successfully')
+    return result
 }
