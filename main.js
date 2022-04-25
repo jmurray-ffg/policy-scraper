@@ -7,6 +7,51 @@ const { JSDOM } = jsdom;
 const { findKeywords } = require('./src/keyword-extraction');
 const { readPdf } = require('./readPdf')
 
+const keyPrefix = 'result_'
+const get_correlation_score = (result, keywords) => {
+    var score = 0;
+    keywords.forEach(keyword => {
+        // may add weight in the future
+        var weight = 1
+        var count = (keyword in result) ? result[keyword] : 0 
+        score += count * weight
+    })
+    return score
+}
+
+
+async function update_dataset(item, maxDiff) {
+    console.log('update dataset')
+    console.log(item)
+    const key =  keyPrefix + item.startUrl.replace(/[^\w\s]/gi, '')
+    const current = await Apify.getValue(key)
+
+    // list all the records that are within 5 points of the highest score
+    if(current == null){
+        console.log(item)
+        Apify.setValue(key, [item])
+    }
+    else {
+        const newValue = []
+        var max = item.result.score
+        current.forEach(record => {
+            if (max - record.score <= maxDiff){
+                newValue.push(record)
+            }
+            if(record.score > max){
+                max = record.score
+            }
+        }) 
+        // the list will only have updated if this item is the new max score               
+        if (max - item.result.score <= maxDiff){
+            newValue.push(item)
+            console.log(newValue)
+            Apify.setValue(key, newValue)
+        }
+
+    }
+}
+
 Apify.main(async () => {
     const input = await Apify.getInput();
     console.log('Input:');
@@ -19,6 +64,7 @@ Apify.main(async () => {
         caseSensitive = false,
         scanScripts = false,
         maxConcurrency,
+        minScore = 10,
         maxDepth = 5,
         maxPagesPerCrawl,
         useBrowser = false,
@@ -79,11 +125,16 @@ Apify.main(async () => {
             result = findKeywords(document, keywords, options);
         }
 
-        await Apify.pushData({
-            url: request.url,
-            startUrl,
-            result,
-        });
+        result['score'] = get_correlation_score(result, keywords)
+
+        // dont even bother pushing if there is no correlation
+        if (result['score'] >= minScore) {
+            await update_dataset({
+                url: request.url,
+                startUrl,
+                result,
+            }, minScore);
+        }
 
         if (depth >= maxDepth) {
             console.log('Reached max depth, not enqueing more ---', request.url);
@@ -95,6 +146,7 @@ Apify.main(async () => {
                 $ = cheerio.load(html);
             }
             if (linkSelector) {
+                console.log('enqueuing links')
                 await Apify.utils.enqueueLinks({
                     $,
                     selector: linkSelector,
@@ -120,21 +172,27 @@ Apify.main(async () => {
         useChrome
     };
 
+    // creates a separate crawler for each LEA to run concurrently
     const pool = new Apify.AutoscaledPool({
-        maxConcurrency: 50,
         runTaskFunction: async () => {
+            
+            // get a URL from the LEA url list
             const source = startUrls.pop()
+
+            // create a request queue for the current LEA
             requestQueues[source.url] = await Apify.openRequestQueue((Math.random() + 1).toString(36).substring(7));
             const req = {
                     ...source,
                     userData: { depth: 0, startUrl: source.url},
                 };
             await requestQueues[source.url].addRequest(req)
+
+            // create the crawler for this LEA
             const basicOptions = {
                 maxRequestRetries: 1,
                 maxRequestsPerCrawl: maxPagesPerCrawl,
-                maxConcurrency,
                 requestQueue: requestQueues[source.url],
+                maxConcurrency: 1,
                 handlePageFunction,
                 additionalMimeTypes
             };
@@ -146,6 +204,8 @@ Apify.main(async () => {
             await crawler.run();
             console.log('Crawler.finished!');
         },
+
+        // if there are any more LEAs left to crawl, spin up another crawler
         isTaskReadyFunction: async () => {
             return startUrls.length > 0
         },
@@ -156,6 +216,22 @@ Apify.main(async () => {
 
     await pool.run();
 
+    
+    // convert the key store into a dataset
+    const keyValueStore = await Apify.openKeyValueStore();
+    await keyValueStore.forEachKey(async (key, index, info) => {
+        // input and output are in the key valure store, ignore them
+        console.log(key)
+        if(key.includes(keyPrefix)){
+            const records = await keyValueStore.getValue(key)
+            console.log(records)
+            await records.forEach(async record => {
+                console.log("record --------------- ")
+                console.log(record)
+                await Apify.pushData(record)
+            })
+        }
+    });
 
 
 });
