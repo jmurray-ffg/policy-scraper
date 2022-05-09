@@ -23,8 +23,8 @@
             "title": "Keywords",
             "type": "array",
             "description": "List of keywords to search and count on every page",
-            "editor": "stringList",
-            "prefill": ["apify", "web", "scraping", "automation"]
+            "editor": "json",
+            "prefill": [{"keyword": "bullying", "weight": 1}]
         },
         "caseSensitive": {
             "title": "Case sensitive",

@@ -6,14 +6,16 @@ const { JSDOM } = jsdom;
 
 const { findKeywords } = require('./src/keyword-extraction');
 const { readPdf } = require('./readPdf')
+let total_processing = 0
+let total_sleep = 0
 
 const keyPrefix = 'result_'
 const get_correlation_score = (result, keywords) => {
     var score = 0;
     keywords.forEach(keyword => {
         // may add weight in the future
-        var weight = 1
-        var count = (keyword in result) ? result[keyword] : 0 
+        var weight = keyword.weight
+        var count = (keyword.keyword in result) ? result[keyword.keyword] : 0 
         score += count * weight
     })
     return score
@@ -35,11 +37,11 @@ async function update_dataset(item, maxDiff) {
         const newValue = []
         var max = item.result.score
         current.forEach(record => {
-            if (max - record.score <= maxDiff){
+            if (max - record.result.score <= maxDiff){
                 newValue.push(record)
             }
-            if(record.score > max){
-                max = record.score
+            if(record.result.score > max){
+                max = record.result.score
             }
         }) 
         // the list will only have updated if this item is the new max score               
@@ -58,13 +60,11 @@ Apify.main(async () => {
     console.dir(input);
 
     const {
-        startUrls,
         linkSelector,
-        keywords = [],
         caseSensitive = false,
         scanScripts = false,
         maxConcurrency,
-        minScore = 10,
+        minScore = 4,
         maxDepth = 5,
         maxPagesPerCrawl,
         useBrowser = false,
@@ -74,16 +74,27 @@ Apify.main(async () => {
         waitFor,
     } = input;
 
-    // pseudoUrls are regexes used to make sure the crawler doesnt leave the site
+    const keywordObjects = input.keywords
+    const requestsFromUrls = input.startUrls
+    const keywords = keywordObjects.map((keyword) => {
+        return keyword.keyword
+    })
+    const requestList = await Apify.openRequestList('my-request-list', requestsFromUrls);
+    let startUrls = []
+    while(!await requestList.isEmpty()){
+        let url = await requestList.fetchNextRequest()
+        console.log(url)
+        startUrls.push({'url': url.url})
+    }
+
     const pseudoUrls = startUrls.map((url) => {
-        // some sites will redirect to https, make sure that these links are accepted
-        let purl = url.url.replace('http://www.', '[http|https]://[.*]')
-        purl = purl.replace('https://www.', '[http|https]://[.*]')
-        purl = purl.replace('https://', '[http|https]://[.*]')
-        purl = purl.replace('https://', '[http|https]://[.*]')
-        purl = purl + ['[.*]']
-        return {purl}})
-    
+            // some sites will redirect to https, make sure that these links are accepted
+            let purl = url.url.replace('http://www.', '[http|https]://[.*]')
+            purl = purl.replace('https://www.', '[http|https]://[.*]')
+            purl = purl.replace('https://', '[http|https]://[.*]')
+            purl = purl.replace('https://', '[http|https]://[.*]')
+            purl = purl + ['[.*]']
+    return {purl}})
     // some pdfs are hosted on aws or other sites, make sure to still check these pdfs
     pseudoUrls.push({purl:'[.*]\.pdf'})
     const options = {
@@ -98,6 +109,7 @@ Apify.main(async () => {
     }
 
     const handlePageFunction = async ({ request, $, body, page }) => {
+        let startTime = Date.now()
         const { depth, startUrl } = request.userData;
 
         console.log('---------------------------------------')
@@ -111,6 +123,10 @@ Apify.main(async () => {
         }
 
         await Apify.utils.sleep(5000)
+        let timeTook = Date.now() - startTime
+        total_sleep += timeTook
+        console.log('sleep took ' + String(timeTook / 1000) + ' seconds')
+        startTime = Date.now()
 
         // We use native dom in browser and library parser for Cheerio
         let result;
@@ -125,9 +141,15 @@ Apify.main(async () => {
             result = findKeywords(document, keywords, options);
         }
 
-        result['score'] = get_correlation_score(result, keywords)
+        result['score'] = get_correlation_score(result, keywordObjects)
 
-        // dont even bother pushing if there is no correlation
+        // if there is no correleation, push the data but note it isnt finalized
+        await Apify.pushData({
+                url: request.url,
+                startUrl,
+                result,
+                final: 0
+            })
         if (result['score'] >= minScore) {
             await update_dataset({
                 url: request.url,
@@ -161,6 +183,14 @@ Apify.main(async () => {
                     },
                 });
             }
+        }
+        timeTook = Date.now() - startTime
+        total_processing += timeTook
+        console.log('processing took ' + String(timeTook / 1000) + ' seconds')
+
+        // if requests are taking too long, url might be overloaded so give it a longer break
+        if (timeTook > 5000){
+            await Apify.sleep(5000)
         }
     };
 
@@ -225,13 +255,17 @@ Apify.main(async () => {
         if(key.includes(keyPrefix)){
             const records = await keyValueStore.getValue(key)
             console.log(records)
-            await records.forEach(async record => {
+            await Promise.all(records.map(async (record) => {
                 console.log("record --------------- ")
                 console.log(record)
-                await Apify.pushData(record)
-            })
+                await Apify.pushData({...record, final: 1})
+                console.log('done')
+            }))
         }
     });
+    console.log('total processing: ' + String(total_processing / 1000))
+    console.log('total sleep: ' + String(total_sleep / 1000))
+
 
 
 });
