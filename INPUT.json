@@ -1,0 +1,11 @@
+{
+  "startUrls": [
+    {"url": "https://www.mineola.k12.ny.us/"}
+  ],
+  "keywords": [
+    {"keyword": "bullying", "weight": 100},
+    {"keyword": "school", "weight": 100}
+  ],
+  "linkSelector": "a[href]",
+  "maxPagesPerCrawl": 10
+}
