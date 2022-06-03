@@ -15,7 +15,7 @@ const get_correlation_score = (result, keywords) => {
     keywords.forEach(keyword => {
         // may add weight in the future
         var weight = keyword.weight
-        var count = (keyword.keyword in result) ? result[keyword.keyword] : 0 
+        var count = (keyword.keyword in result) ? result[keyword.keyword] : 0
         score += count * weight
     })
     return score
@@ -43,8 +43,8 @@ async function update_dataset(item, maxDiff) {
             if(record.result.score > max){
                 max = record.result.score
             }
-        }) 
-        // the list will only have updated if this item is the new max score               
+        })
+        // the list will only have updated if this item is the new max score
         if (max - item.result.score <= maxDiff){
             newValue.push(item)
             console.log(newValue)
@@ -176,8 +176,8 @@ Apify.main(async () => {
                     requestQueue: requestQueues[startUrl],
                     baseUrl: request.loadedUrl,
                     transformRequestFunction: (request) => {
-                        // sleep between each link being enqueued. 
-                        // This will hopefully prevent the Same site from being hit too many times in a short period 
+                        // sleep between each link being enqueued.
+                        // This will hopefully prevent the Same site from being hit too many times in a short period
                         request.userData = { depth: depth + 1, startUrl };
                         return request;
                     },
@@ -190,12 +190,12 @@ Apify.main(async () => {
 
         // if requests are taking too long, url might be overloaded so give it a longer break
         if (timeTook > 5000){
-            await Apify.sleep(5000)
+            await Apify.utils.sleep(5000)
         }
     };
 
     const additionalMimeTypes = ['application/pdf']
-    
+
 
     const launchContext = {
         stealth: true,
@@ -205,7 +205,7 @@ Apify.main(async () => {
     // creates a separate crawler for each LEA to run concurrently
     const pool = new Apify.AutoscaledPool({
         runTaskFunction: async () => {
-            
+
             // get a URL from the LEA url list
             const source = startUrls.pop()
 
@@ -246,7 +246,7 @@ Apify.main(async () => {
 
     await pool.run();
 
-    
+
     // convert the key store into a dataset
     const keyValueStore = await Apify.openKeyValueStore();
     await keyValueStore.forEachKey(async (key, index, info) => {
