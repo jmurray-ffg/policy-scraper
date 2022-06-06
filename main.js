@@ -136,8 +136,7 @@ Apify.main(async () => {
         // We use native dom in browser and library parser for Cheerio
         let result;
         if (request.url.match(/\.pdf/)){
-            // result = await readPdf(request.url, keywords, {'url': request.url })
-            result = {}
+            result = await readPdf(request.url, keywords, {'url': request.url })
         }
         else if (page) {
             result = await page.evaluate(findKeywords, null, keywords, options);
