@@ -1,11 +1,25 @@
 {
   "startUrls": [
-    {"url": "https://www.mineola.k12.ny.us/"}
+{"url": "http://www.sascs.org"}
+
+
+
+
   ],
   "keywords": [
-    {"keyword": "bullying", "weight": 100},
-    {"keyword": "school", "weight": 100}
+    {"keyword": "bully", "weight": 10},
+    {"keyword": "bullying", "weight": 10},
+    {"keyword": "harassment", "weight": 10},
+    {"keyword": "policy", "weight": 1},
+    {"keyword": "prevention", "weight": 10},
+    {"keyword": "cyberbullying", "weight": 10},
+    {"keyword": "cyber-bullying", "weight": 10},
+    {"keyword": "teasing", "weight": 10},
+    {"keyword": "unwanted", "weight": 10},
+    {"keyword": "distress", "weight": 10},
+    {"keyword": "violence", "weight": 10}
   ],
   "linkSelector": "a[href]",
-  "maxPagesPerCrawl": 10
+  "maxPagesPerCrawl": 10,
+  "maxConcurrency": 50
 }

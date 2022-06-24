@@ -6,10 +6,15 @@ const { JSDOM } = jsdom;
 
 const { findKeywords } = require('./src/keyword-extraction');
 const { readPdf } = require('./readPdf')
+const csvWriter = require('csv-writer')
 const fs = require('fs');
 const path = require('path');
 let total_processing = 0
 let total_sleep = 0
+
+const timeStamp = new Date().getTime();
+process.env.APIFY_DEFAULT_DATASET_ID = timeStamp.toString()
+process.env.APIFY_DEFAULT_KEY_VALUE_STORE_ID = timeStamp.toString()
 
 const keyPrefix = 'result_'
 const get_correlation_score = (result, keywords) => {
@@ -28,12 +33,13 @@ async function update_dataset(item, maxDiff) {
     console.log('update dataset')
     console.log(item)
     const key =  keyPrefix + item.startUrl.replace(/[^\w\s]/gi, '')
-    const current = await Apify.getValue(key)
+    const keyValueStore = await Apify.openKeyValueStore("resultsStore" + timeStamp.toString());
+    const current = await keyValueStore.getValue(key)
 
     // list all the records that are within 5 points of the highest score
     if(current == null){
         console.log(item)
-        Apify.setValue(key, [item])
+        keyValueStore.setValue(key, [item])
     }
     else {
         const newValue = []
@@ -50,7 +56,7 @@ async function update_dataset(item, maxDiff) {
         if (max - item.result.score <= maxDiff){
             newValue.push(item)
             console.log(newValue)
-            Apify.setValue(key, newValue)
+            keyValueStore.setValue(key, newValue)
         }
 
     }
@@ -215,13 +221,17 @@ Apify.main(async () => {
             const source = startUrls.pop()
 
             // create a request queue for the current LEA
-            requestQueues[source.url] = await Apify.openRequestQueue((Math.random() + 1).toString(36).substring(7));
+            const requestQueueName = (Math.random() + 1).toString(36).substring(7)
+            requestQueues[source.url] = await Apify.openRequestQueue(requestQueueName);
             const req = {
                     ...source,
                     userData: { depth: 0, startUrl: source.url},
                 };
             await requestQueues[source.url].addRequest(req)
 
+            const sessionPoolOptions = {
+              persistStateKey: "STATE_" + requestQueueName
+            }
             // create the crawler for this LEA
             const basicOptions = {
                 maxRequestRetries: 1,
@@ -229,7 +239,8 @@ Apify.main(async () => {
                 requestQueue: requestQueues[source.url],
                 maxConcurrency: 1,
                 handlePageFunction,
-                additionalMimeTypes
+                additionalMimeTypes,
+                sessionPoolOptions
             };
             const crawler = useBrowser
                 ? new Apify.PuppeteerCrawler({ ...basicOptions, launchContext})
@@ -253,7 +264,20 @@ Apify.main(async () => {
 
 
     // convert the key store into a dataset
-    const keyValueStore = await Apify.openKeyValueStore();
+    const keyValueStore = await Apify.openKeyValueStore("resultsStore" + timeStamp.toString());
+
+    const header = keywords.map((keyword) => {
+      return {id: keyword, title: keyword}
+    })
+    header.push({id: 'url', title: 'URL'})
+    header.push({id: 'startUrl', title: 'LEA Homepage URL'})
+    header.push({id: 'score', title: 'Total Score'})
+    const writer = csvWriter.createObjectCsvWriter({
+      path: 'result_' + timeStamp.toString() + '.csv',
+      header: header
+    })
+
+    const csvData = []
     await keyValueStore.forEachKey(async (key, index, info) => {
         // input and output are in the key valure store, ignore them
         console.log(key)
@@ -264,10 +288,14 @@ Apify.main(async () => {
                 console.log("record --------------- ")
                 console.log(record)
                 await Apify.pushData({...record, final: 1})
+                csvData.push({url: record.url, startUrl: record.startUrl, ...record.result})
+
                 console.log('done')
             }))
         }
     });
+    console.log(csvData)
+    await writer.writeRecords(csvData)
     console.log('total processing: ' + String(total_processing / 1000))
     console.log('total sleep: ' + String(total_sleep / 1000))
 
