@@ -15,4 +15,4 @@ The rest of the dependencies can be added with
 ``` npm install ```
 
 ## Input
-When running the program it will ask for an input csv file. INPUT.csv is provided as a template file that can be modified with yoour desired input parameters. When actually running the program you will be asked to enter the path to INPUT.txt, or you can enter the path of a different csv file as long as it matches the format of the template
+When running the program it will ask for an input csv file. INPUT.csv is provided as a template file that can be modified with yoour desired input parameters. When actually running the program you will be asked to enter the path to INPUT.csv, or you can enter the path of a different csv file as long as it matches the format of the template
