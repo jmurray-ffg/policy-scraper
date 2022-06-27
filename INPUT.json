@@ -1,10 +1,6 @@
 {
   "startUrls": [
 {"url": "http://www.sascs.org"}
-
-
-
-
   ],
   "keywords": [
     {"keyword": "bully", "weight": 10},
@@ -20,6 +16,6 @@
     {"keyword": "violence", "weight": 10}
   ],
   "linkSelector": "a[href]",
-  "maxPagesPerCrawl": 10,
+  "maxPagesPerCrawl": 150,
   "maxConcurrency": 50
 }

@@ -1,12 +1,13 @@
 const Apify = require('apify');
 const jsdom = require('jsdom');
 const cheerio = require('cheerio');
-
+const prompt = require('prompt-sync')();
 const { JSDOM } = jsdom;
 
 const { findKeywords } = require('./src/keyword-extraction');
 const { readPdf } = require('./readPdf')
 const csvWriter = require('csv-writer')
+const csv = require('csv-parser')
 const fs = require('fs');
 const path = require('path');
 let total_processing = 0
@@ -62,19 +63,51 @@ async function update_dataset(item, maxDiff) {
     }
 }
 
+function readCsv(path) {
+
+  return new Promise((resolve, reject) => {
+    const data = [];
+    fs.createReadStream(path).pipe(csv())
+      .on("error", reject)
+      .on("data", (row) => data.push(row))
+      .on("end", () => {
+        resolve(data);
+      });
+  });
+}
+
 Apify.main(async () => {
-    const pathToInput = path.join(__dirname, 'INPUT.json');
-    const inputText = fs.readFileSync(pathToInput, 'utf-8')
-    const input = JSON.parse(inputText)
+    const pathToInput = prompt('Enter csv file: ')
+    const input = {
+      startUrls: [],
+      keywords: [],
+      maxPagesPerCrawl: 0
+    }
+    const csvOutput = await readCsv(pathToInput)
+
+    csvOutput.forEach((row) => {
+      console.log(row)
+      if (row.urls){
+        input.startUrls.push({'url': row.urls})
+      }
+      if (row.keywords && row.weights){
+        input.keywords.push({"keyword": row.keywords, "weight": parseInt(row.weights)})
+      }
+      if (row.maxPagesPerLEA){
+        input.maxPagesPerCrawl = parseInt(row.maxPagesPerLEA)
+      }
+  })
+    // const inputText = fs.readFileSync(pathToInput, 'utf-8')
+    // const input = JSON.parse(inputText)
 
     console.log('Input:');
     console.dir(input);
 
     const {
-        linkSelector,
+        linkSelector =  "a[href]",
         caseSensitive = false,
         scanScripts = false,
-        maxConcurrency,
+        maxConcurrency = 50,
         minScore = 4,
         maxDepth = 5,
         maxPagesPerCrawl,

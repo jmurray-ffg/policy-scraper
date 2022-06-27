@@ -1,0 +1,12 @@
+﻿Scraper input instructions:,urls,keywords,weights,maxPagesPerLEA
+Do not change the top row,https://www.example.com,bully,10,10
+you may freely edit the remaining rows,https://www.example.com,bullying,10,
+urls: enter all lea urls you wish to crawl,https://www.example.com,harassment,10,
+keywords: enter the keywords you would like to search for,https://www.example.com,policy,1,
+weights: These are measures of how important each word is in the search,https://www.example.com,prevention,10,
+"maxPagesPerLEA: this is the number of different pages the scraper will visit on the LEA website before determining which policy to output. A higher number will lead to more accurate results, but will take longer",https://www.example.com,cyberbullying,10,
+,https://www.example.com,cyber-bullying,10,
+,https://www.example.com,teasing,10,
+,,unwanted,10,
+,,distress,10,
+,,violence,10,
