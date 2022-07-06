@@ -1,7 +1,9 @@
 {
-    "name": "project-puppeteer-crawler",
+    "name": "Policy-Scraper",
     "version": "0.0.1",
     "description": "This is a boilerplate of an Apify actor.",
+    "main": "main.js",
+    "bin": "main.js",
     "dependencies": {
         "@types/cheerio": "^0.22.16",
         "@types/jsdom": "^16.1.0",
@@ -18,6 +20,9 @@
         "@apify/eslint-config": "^0.1.3",
         "eslint": "^7.0.0"
     },
+    "pkg": {
+    "assets": "node_modules/better-sqlite3-with-prebuilds/*/**"
+  },
     "scripts": {
         "start": "node main.js",
         "lint": "./node_modules/.bin/eslint ./src --ext .js,.jsx",
