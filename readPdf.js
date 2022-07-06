@@ -33,23 +33,22 @@ module.exports.readPdf = async(input, keywords, opts) => {
     console.log('Saving file to: ' + tmpTarget);
     fs.writeFileSync(tmpTarget, buffer)
     console.log('File saved.');
-
-    try {
     const pathToPdf = path.join(__dirname, tmpTarget);
-    const extract = util.promisify(pdfExtract);
+    try {
+      const extract = util.promisify(pdfExtract);
 
-    console.log('Extracting PDF...');
-    const pagesText = await extract(pathToPdf);
-    console.log('Crawling result...');
+      console.log('Extracting PDF...');
+      const pagesText = await extract(pathToPdf);
+      console.log('Crawling result...');
 
-    console.dir(JSON.stringify(pagesText, null, 2));
+      console.dir(JSON.stringify(pagesText, null, 2));
 
-    const result = findKeywords(pagesText, keywords)
+      const result = findKeywords(pagesText, keywords)
 
-    console.log('extracted successfully')
-    return result
-  }
-  finally{
-      fs.unlinkSync(pathToPdf)
-  }
+      console.log('extracted successfully')
+      return result
+    }
+    finally{
+        fs.unlinkSync(pathToPdf)
+    }
 }
